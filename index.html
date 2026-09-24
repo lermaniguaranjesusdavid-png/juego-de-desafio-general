@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🐤 Flappy IA: Humanismo Digital e Inteligencia Artificial</title>
+<style>
+  :root {
+    --cyan: #22d3ee; --violet: #7c3aed; --green: #22c55e; --yellow: #facc15; --orange: #f97316; --red: #ef4444;
+    --bg: #0f0c29; --bg2: #302b63;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+  html, body { height: 100%; overflow: hidden; background: linear-gradient(135deg, var(--bg), var(--bg2)); color: #fff; user-select: none; }
+  body { display: flex; align-items: center; justify-content: center; padding: 10px; }
+
+  /* ===== CARDS Y NAVEGACIÓN ===== */
+  .card-box {
+    background: rgba(20, 18, 40, 0.94); border: 2px solid rgba(255,255,255,0.18);
+    border-radius: 20px; padding: 22px; max-width: 560px; width: 100%; text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+  }
+  h1 { font-size: 1.7rem; margin-bottom: 8px; color: #fff; }
+  p.sub { font-size: .88rem; color: #b9b9e0; margin-bottom: 16px; line-height: 1.4; }
+  p.sub b { color: var(--yellow); }
+
+  #playerName {
+    width: 100%; padding: 12px 16px; border-radius: 12px; font-size: 1rem; outline: none;
+    background: rgba(255,255,255,.12); color: #fff; border: 2px solid rgba(255,255,255,.25);
+    max-width: 280px; text-align: center; margin-bottom: 14px;
+  }
+  #playerName:focus { border-color: var(--cyan); }
+
+  .btn {
+    cursor: pointer; border: none; border-radius: 12px; padding: 12px 22px; font-weight: 700;
+    font-size: 1rem; color: #fff; transition: .18s; touch-action: manipulation;
+  }
+  .btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: linear-gradient(135deg, var(--violet), var(--cyan)); box-shadow: 0 6px 18px rgba(124,58,237,.45); }
+  .btn.secondary { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.3); }
+
+  /* ===== GAME CANVAS ===== */
+  #gameWrap { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 500px; }
+  #canvasWrap { position: relative; width: 100%; border-radius: 16px; overflow: hidden; border: 2px solid rgba(255,255,255,.2); background: #0f0c29; }
+  canvas { width: 100%; height: auto; display: block; cursor: pointer; }
+  
+  .hud {
+    display: flex; justify-content: space-between; align-items: center; width: 100%;
+    padding: 10px 16px; background: rgba(0,0,0,.6); border-radius: 12px; margin-bottom: 8px; font-weight: 700; font-size: 0.95rem;
+  }
+
+  /* ===== OVERLAYS ===== */
+  #gateOverlay, #endOverlay {
+    position: fixed; inset: 0; background: rgba(4,4,20,.9); display: none; z-index: 50;
+    align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(6px);
+  }
+  #gateOverlay.show, #endOverlay.show { display: flex; }
+  
+  .diff-badge {
+    display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: .85rem; font-weight: 800; text-transform: uppercase; margin-bottom: 10px;
+  }
+  .diff-badge.facil { background: rgba(34,197,94,0.2); color: var(--green); border: 1px solid var(--green); }
+  .diff-badge.media { background: rgba(249,115,22,0.2); color: var(--orange); border: 1px solid var(--orange); }
+  .diff-badge.dificil { background: rgba(239,68,68,0.2); color: var(--red); border: 1px solid var(--red); }
+
+  .gate-quest { font-size: 1rem; color: #ffd60a; font-weight: 700; margin-bottom: 12px; line-height: 1.35; text-align: left; }
+  .opts { display: grid; gap: 8px; width: 100%; }
+  .opt {
+    display: flex; align-items: center; width: 100%; padding: 10px 14px; border-radius: 10px;
+    border: 2px solid rgba(255,255,255,.2); background: rgba(255,255,255,.08); cursor: pointer;
+    font-size: .88rem; transition: .15s; color: #fff; text-align: left; line-height: 1.25;
+  }
+  .opt:hover:not(:disabled) { background: rgba(255,255,255,.18); border-color: var(--cyan); }
+  .opt.correct { background: linear-gradient(135deg, var(--green), #15803d) !important; border-color: var(--green) !important; }
+  .opt.wrong { background: linear-gradient(135deg, var(--red), #b91c1c) !important; border-color: var(--red) !important; }
+  
+  .gate-fb {
+    margin-top: 12px; font-size: .85rem; line-height: 1.35; text-align: left;
+    background: rgba(255,255,255,.06); padding: 12px; border-radius: 10px; border-left: 4px solid var(--cyan);
+  }
+
+  #endScore { font-size: 3rem; font-weight: 800; color: var(--yellow); }
+  .stats { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin: 14px 0; }
+  .stat2 { padding: 10px; background: rgba(255,255,255,.08); border-radius: 10px; font-size: .85rem; }
+  .stat2 b { display: block; font-size: 1.2rem; color: #fff; }
+</style>
+</head>
+<body>
+
+<!-- PANTALLA INICIAL -->
+<div id="startScreen" class="card-box">
+  <h1>🐤 Flappy Humanismo Digital 🤖</h1>
+  <p class="sub">Vuela libre. Cada obstáculo superado vale <b>1 Punto</b>. Inicias con <b>3 Vidas</b>. Si chocas, pierdes 1 vida y respondes una pregunta para sumar puntos. ¡Responde 2 bien seguidas y gana 1 Vida Extra!</p>
+  <input id="playerName" maxlength="15" placeholder="Tu Nombre o Apodo" autocomplete="off">
+  <div>
+    <button class="btn primary" id="btnStart">🚀 Iniciar Juego</button>
+  </div>
+</div>
+
+<!-- CONTENEDOR DEL JUEGO -->
+<div id="gameWrap">
+  <div class="hud">
+    <span style="color:var(--yellow)">Vidas: <span id="hudLives">❤️❤️❤️</span></span>
+    <span style="color:var(--cyan)">Obstáculos: <span id="hudStreak">0</span></span>
+    <span>Puntuación: <span id="hudScore" style="color:var(--yellow)">0</span> pts</span>
+  </div>
+  <div id="canvasWrap">
+    <canvas id="cv" width="400" height="520"></canvas>
+  </div>
+</div>
+
+<!-- OVERLAY DE PREGUNTAS (AL CHOCAR) -->
+<div id="gateOverlay">
+  <div class="card-box">
+    <div id="diffBadge" class="diff-badge facil">Nivel Fácil</div>
+    <div id="gateQuest" class="gate-quest"></div>
+    <div id="gateOpts" class="opts"></div>
+    <div id="gateResult" class="gate-fb" style="display:none;"></div>
+    <div style="margin-top:14px; text-align:right;">
+      <button class="btn primary" id="gateNext" style="display:none;">Reanudar Vuelo ➔</button>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY FINAL -->
+<div id="endOverlay">
+  <div class="card-box">
+    <h2>¡Fin del Juego! 🏁</h2>
+    <div id="endScore">0</div>
+    <p id="endRank" style="color:var(--green); font-weight:700; margin-top:4px;">🏆 Nivel Alcanzado</p>
+    <div class="stats">
+      <div class="stat2">Respuestas Correctas<b id="cCorrect">0</b></div>
+      <div class="stat2">Errores<b id="cWrong">0</b></div>
+    </div>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button class="btn primary" id="btnAgain" style="flex:1;">🔄 Jugar de Nuevo</button>
+      <button class="btn secondary" id="btnHome" style="flex:1;">👤 Inicio</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ===================== BANCO DE PREGUNTAS ===================== */
+const RAW_QUESTIONS = {
+  facil: [
+    {
+      q: "¿Cuál es el propósito del Humanismo Digital?",
+      o: [
+        { t: "Garantizar que la tecnología respete los derechos y la dignidad humana", ok: true },
+        { t: "Reemplazar a los docentes por robots", ok: false },
+        { t: "Prohibir el uso de celulares e internet", ok: false },
+        { t: "Hacer que las computadoras sean más caras", ok: false }
+      ],
+      whyOK: "El humanismo digital prioriza el bienestar y la dignidad de las personas sobre la tecnología.",
+      whyBAD: "No busca eliminar la tecnología ni reemplazar al ser humano, sino orientarla éticamente."
+    },
+    {
+      q: "¿Qué es la 'Huella Digital' en internet?",
+      o: [
+        { t: "El rastro de datos y publicaciones que dejamos al usar la red", ok: true },
+        { t: "La marca de los dedos en la pantalla del teléfono", ok: false },
+        { t: "Una contraseña especial del gobierno", ok: false },
+        { t: "La velocidad con la que carga una página web", ok: false }
+      ],
+      whyOK: "Toda interacción en línea deja un registro visible o almacenable en bases de datos.",
+      whyBAD: "La huella digital no es una marca física ni una clave, es el historial de tus acciones en línea."
+    },
+    {
+      q: "¿Cómo actúa un 'Ciudadano Digital' responsable?",
+      o: [
+        { t: "Usando la tecnología de forma ética, respetuosa y crítica", ok: true },
+        { t: "Compartiendo noticias sin verificar si son reales", ok: false },
+        { t: "Ofendiendo a otros usuarios de forma anónima", ok: false },
+        { t: "Comprando el último modelo de teléfono inteligente", ok: false }
+      ],
+      whyOK: "Ser buen ciudadano digital implica respeto, seguridad y pensamiento crítico al navegar.",
+      whyBAD: "Tener dispositivos costosos o divulgar desinformación no refleja ciudadanía responsable."
+    }
+  ],
+  media: [
+    {
+      q: "¿En qué consiste la técnica de estafa conocida como 'Phishing'?",
+      o: [
+        { t: "Enviar mensajes falsos haciéndose pasar por empresas para robar datos", ok: true },
+        { t: "Un juego educativo para aprender a programar", ok: false },
+        { t: "Un sistema para acelerar descargas en la red", ok: false },
+        { t: "Un tipo de cable para conectar monitores", ok: false }
+      ],
+      whyOK: "El Phishing usa el engaño para que la víctima entregue claves o datos bancarios voluntariamente.",
+      whyBAD: "No es una herramienta técnica ni un juego, es un ciberdelito de suplantación de identidad."
+    },
+    {
+      q: "¿Qué describe mejor la 'Brecha Digital Generacional'?",
+      o: [
+        { t: "La disparidad en el acceso y uso de tecnología entre distintas edades", ok: true },
+        { t: "La diferencia de precio entre computadoras viejas y nuevas", ok: false },
+        { t: "El tiempo que tarda un adulto en cargar su celular", ok: false },
+        { t: "La distancia entre los cables de conexión a internet", ok: false }
+      ],
+      whyOK: "Refleja cómo el cambio tecnológico genera barreras de adaptación entre jóvenes y adultos mayores.",
+      whyBAD: "Se refiere a la brecha de conocimiento, oportunidades y habilidades, no al hardware ni costos."
+    }
+  ],
+  dificil: [
+    {
+      q: "¿Qué es el 'Sesgo Algorítmico' en la Inteligencia Artificial?",
+      o: [
+        { t: "La reproducción de prejuicios humanos al entrenar IAs con datos discriminatorios", ok: true },
+        { t: "Un fallo técnico cuando el procesador de la computadora se calienta", ok: false },
+        { t: "Un virus que borra las imágenes descargadas", ok: false },
+        { t: "Un error de formato en la pantalla del usuario", ok: false }
+      ],
+      whyOK: "Si los datos del pasado contienen discriminación, el algoritmo aprenderá a replicar esa injusticia.",
+      whyBAD: "No es un fallo de temperatura ni un virus, es un problema ético en los datos de aprendizaje."
+    },
+    {
+      q: "¿Qué caracteriza a un 'Deepfake' en el entorno digital?",
+      o: [
+        { t: "Archivos de audio o video sintéticos hiperrealistas generados por IA", ok: true },
+        { t: "Un archivo PDF que contiene texto mal escrito", ok: false },
+        { t: "Una cuenta de usuario sin foto de perfil", ok: false },
+        { t: "Un anuncio publicitario en un sitio web", ok: false }
+      ],
+      whyOK: "Los Deepfakes manipulan caras y voces para hacer parecer que alguien dijo o hizo algo falso.",
+      whyBAD: "Va mucho más allá de un texto o perfil sin foto; es síntesis multimedia manipulada con IA."
+    }
+  ]
+};
+
+function clonePools() {
+  return JSON.parse(JSON.stringify(RAW_QUESTIONS));
+}
+
+let activePools = clonePools();
+
+/* ===================== MOTOR DEL JUEGO ===================== */
+const CV = document.getElementById('cv');
+const ctx = CV.getContext('2d');
+
+let bird = { x: 60, y: 200, vy: 0, gravity: 0.38, jump: -6.5, size: 22 };
+let pipes = [];
+let score = 0;
+let lives = 3;
+let streak = 0; // Obstáculos superados en este tramo
+let consecutiveCorrect = 0; // Conteo de respuestas correctas seguidas para vida extra
+let frame = 0;
+let gameState = 'START';
+let correctCount = 0;
+let wrongCount = 0;
+
+function playSound(freq, type, duration) {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  } catch(e){}
+}
+
+function init() {
+  document.getElementById('btnStart').onclick = startGame;
+  document.getElementById('btnAgain').onclick = startGame;
+  document.getElementById('btnHome').onclick = () => {
+    document.getElementById('endOverlay').classList.remove('show');
+    document.getElementById('gameWrap').style.display = 'none';
+    document.getElementById('startScreen').style.display = 'block';
+  };
+
+  const flap = () => {
+    if (gameState === 'PLAYING') {
+      bird.vy = bird.jump;
+      playSound(420, 'sine', 0.08);
+    }
+  };
+
+  window.addEventListener('keydown', (e) => { if(e.code === 'Space') flap(); });
+  CV.addEventListener('mousedown', flap);
+  CV.addEventListener('touchstart', (e) => { e.preventDefault(); flap(); });
+
+  requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+  score = 0;
+  lives = 3;
+  streak = 0;
+  consecutiveCorrect = 0;
+  correctCount = 0;
+  wrongCount = 0;
+  pipes = [];
+  bird.y = 200;
+  bird.vy = 0;
+  activePools = clonePools();
+
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('endOverlay').classList.remove('show');
+  document.getElementById('gateOverlay').classList.remove('show');
+  document.getElementById('gameWrap').style.display = 'flex';
+
+  updateHUD();
+  gameState = 'PLAYING';
+}
+
+function updateHUD() {
+  document.getElementById('hudScore').innerText = score;
+  document.getElementById('hudStreak').innerText = streak;
+  document.getElementById('hudLives').innerText = '❤️'.repeat(Math.max(0, lives));
+}
+
+function spawnPipe() {
+  const gap = 135;
+  const minTop = 40;
+  const maxTop = CV.height - gap - 100;
+  const topHeight = Math.floor(Math.random() * (maxTop - minTop + 1)) + minTop;
+
+  pipes.push({
+    x: CV.width,
+    top: topHeight,
+    bottom: CV.height - topHeight - gap,
+    passed: false
+  });
+}
+
+function update() {
+  if (gameState !== 'PLAYING') return;
+
+  frame++;
+  bird.vy += bird.gravity;
+  bird.y += bird.vy;
+
+  if (frame % 95 === 0) spawnPipe();
+
+  for (let i = pipes.length - 1; i >= 0; i--) {
+    let p = pipes[i];
+    p.x -= 2.4;
+
+    // Colisión con Tuberías
+    if (bird.x + bird.size > p.x && bird.x - bird.size < p.x + 50) {
+      if (bird.y - bird.size < p.top || bird.y + bird.size > CV.height - p.bottom) {
+        handleCrash();
+        return;
+      }
+    }
+
+    // Obstáculo superado: +1 Punto a la puntuación
+    if (!p.passed && p.x < bird.x) {
+      p.passed = true;
+      score += 1; // +1 punto por cada obstáculo superado
+      streak++;
+      updateHUD();
+      playSound(620, 'triangle', 0.1);
+    }
+
+    if (p.x < -60) pipes.splice(i, 1);
+  }
+
+  // Colisión con Techo o Suelo
+  if (bird.y + bird.size >= CV.height - 20 || bird.y - bird.size <= 0) {
+    handleCrash();
+  }
+}
+
+function handleCrash() {
+  playSound(180, 'sawtooth', 0.25);
+  lives--; // Descontar vida al chocar
+  updateHUD();
+  triggerQuestionByStreak();
+}
+
+function draw() {
+  ctx.fillStyle = '#0f0c29';
+  ctx.fillRect(0, 0, CV.width, CV.height);
+
+  pipes.forEach(p => {
+    ctx.fillStyle = '#7c3aed';
+    ctx.fillRect(p.x, 0, 50, p.top);
+    ctx.fillRect(p.x, CV.height - p.bottom, 50, p.bottom);
+    
+    ctx.fillStyle = '#22d3ee';
+    ctx.fillRect(p.x - 2, p.top - 12, 54, 12);
+    ctx.fillRect(p.x - 2, CV.height - p.bottom, 54, 12);
+  });
+
+  ctx.fillStyle = '#1e1b4b';
+  ctx.fillRect(0, CV.height - 20, CV.width, 20);
+
+  ctx.font = '26px sans-serif';
+  ctx.fillText('🤖', bird.x - 13, bird.y + 9);
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+/* ===================== EVALUACIÓN Y PREGUNTAS ===================== */
+function triggerQuestionByStreak() {
+  let difficulty = 'dificil';
+
+  if (streak >= 5) {
+    difficulty = 'facil';
+  } else if (streak >= 3) {
+    difficulty = 'media';
+  } else {
+    difficulty = 'dificil';
+  }
+
+  showQuestionModal(difficulty);
+}
+
+function showQuestionModal(difficulty) {
+  gameState = 'GATE';
+  
+  let pool = activePools[difficulty];
+
+  if (!pool || pool.length === 0) {
+    activePools[difficulty] = JSON.parse(JSON.stringify(RAW_QUESTIONS[difficulty]));
+    pool = activePools[difficulty];
+  }
+
+  const randomIndex = Math.floor(Math.random() * pool.length);
+  const qData = pool.splice(randomIndex, 1)[0];
+
+  const badge = document.getElementById('diffBadge');
+  badge.className = `diff-badge ${difficulty}`;
+  
+  if (difficulty === 'facil') badge.innerText = `🟢 Pregunta Fácil (${streak} Obstáculos Superados)`;
+  else if (difficulty === 'media') badge.innerText = `🟡 Pregunta Media (${streak} Obstáculos Superados)`;
+  else badge.innerText = `🔴 Pregunta Difícil (${streak} Obstáculos Superados)`;
+
+  document.getElementById('gateQuest').innerText = qData.q;
+  const optsContainer = document.getElementById('gateOpts');
+  optsContainer.innerHTML = '';
+  document.getElementById('gateResult').style.display = 'none';
+  document.getElementById('gateNext').style.display = 'none';
+
+  qData.o.forEach((opt) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt';
+    btn.innerText = opt.t;
+    btn.onclick = () => evaluateAnswer(opt.ok, btn, qData);
+    optsContainer.appendChild(btn);
+  });
+
+  document.getElementById('gateOverlay').classList.add('show');
+}
+
+function evaluateAnswer(isCorrect, btnClicked, qData) {
+  const buttons = document.querySelectorAll('.opt');
+  buttons.forEach(b => b.disabled = true);
+
+  const resultBox = document.getElementById('gateResult');
+  resultBox.style.display = 'block';
+
+  let bonusMsg = "";
+
+  if (isCorrect) {
+    btnClicked.classList.add('correct');
+    score += 25; // Suma de puntos por acierto
+    correctCount++;
+    consecutiveCorrect++; // Incrementar racha de respuestas correctas
+    playSound(850, 'sine', 0.2);
+
+    // Si responde 2 preguntas bien seguidas -> +1 Vida Extra
+    if (consecutiveCorrect === 2) {
+      lives++;
+      consecutiveCorrect = 0; // Reiniciar conteo de vida extra
+      bonusMsg = "<br><b style='color:var(--yellow); font-size: 1rem;'>💖 ¡Racha de 2 Respuestas Correctas! ¡Ganas 1 Vida Extra!</b>";
+    }
+
+    resultBox.style.borderLeftColor = 'var(--green)';
+    resultBox.innerHTML = `
+      <b style="color:var(--green)">¡Respuesta Correcta! Sumas +25 Puntos 🎉</b>
+      ${qData.whyOK}
+      ${bonusMsg}
+    `;
+  } else {
+    btnClicked.classList.add('wrong');
+    wrongCount++;
+    consecutiveCorrect = 0; // Reiniciar racha al fallar
+    playSound(180, 'sawtooth', 0.3);
+
+    buttons.forEach(b => {
+      if(b.innerText === qData.o.find(item => item.ok).t) {
+        b.classList.add('correct');
+      }
+    });
+
+    resultBox.style.borderLeftColor = 'var(--red)';
+    resultBox.innerHTML = `
+      <b style="color:var(--red)">¡Incorrecto! ❌</b><br>
+      <b>Tu error:</b> ${qData.whyBAD}<br><br>
+      <b>Fundamento Correcto:</b> ${qData.whyOK}
+    `;
+  }
+
+  updateHUD();
+
+  const nextBtn = document.getElementById('gateNext');
+  nextBtn.style.display = 'inline-block';
+  
+  if (lives <= 0) {
+    nextBtn.innerText = 'Ver Resultados Finales ➔';
+    nextBtn.onclick = endGame;
+  } else {
+    nextBtn.innerText = 'Reanudar Vuelo ➔';
+    nextBtn.onclick = () => {
+      document.getElementById('gateOverlay').classList.remove('show');
+      bird.y = 200;
+      bird.vy = 0;
+      pipes = [];
+      streak = 0; // Reiniciar conteo de obstáculos para el tramo actual
+      gameState = 'PLAYING';
+    };
+  }
+}
+
+function endGame() {
+  document.getElementById('gateOverlay').classList.remove('show');
+  gameState = 'END';
+  document.getElementById('endScore').innerText = score;
+  document.getElementById('cCorrect').innerText = correctCount;
+  document.getElementById('cWrong').innerText = wrongCount;
+
+  let rank = '🌱 Principiante Digital';
+  if (score > 100) rank = '🏆 Maestro del Humanismo Digital';
+  else if (score > 50) rank = '⚡ Ciudadano Digital Consciente';
+
+  document.getElementById('endRank').innerText = rank;
+  document.getElementById('endOverlay').classList.add('show');
+}
+
+window.onload = init;
+</script>
+</body>
+</html>
